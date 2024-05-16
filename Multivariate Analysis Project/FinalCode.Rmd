@@ -1,0 +1,354 @@
+---
+title: "Final Project Group 5 Multivariate"
+author: "Multivariate Group 5"
+date: "2023-12-01"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+AreaDrought=read.csv("areaDrought.csv",row.names = 1)
+
+
+
+```
+
+
+
+
+
+Data Cleaning
+
+chi-square plot of the Mahalanobis distances
+```{r}
+
+AreaDroughtNew=AreaDrought
+
+#Get column means + cov
+xbar=colMeans(AreaDroughtNew)
+S=cov(AreaDroughtNew)
+
+#using the mahalanobis function
+d2=mahalanobis(AreaDroughtNew,xbar,S)
+#finding the quantiles
+quantiles=qchisq((1:nrow(AreaDroughtNew)-1/2)/nrow(AreaDroughtNew),df=ncol(AreaDroughtNew))
+sd2=sort(d2)
+#plotting quantiles versus ordered squared distances
+plot(quantiles,sd2,xlab='Quantile',ylab='Ordered Square Distances')
+abline(a=0,b=1)
+
+#text(quantiles,sd2,labels=row.names(AreaDroughtNew),pos = 1,cex=0.4)
+
+
+
+
+
+```
+
+```{r}
+
+#explain this garbage
+outliers <- which(d2> qchisq(0.975, ncol(S)))
+outliers
+
+
+```
+#lots of outliers need to go to each index and delete the row 
+#INTERESTING!!!!!! Most outliers are during covid year 2020
+
+
+```{r}
+
+AreaDroughtClean=AreaDrought[-outliers,]
+
+round(cor(AreaDrought),2)
+round(cor(AreaDroughtClean),2)
+
+```
+```{r}
+
+plot(AreaDroughtClean)
+
+
+
+
+```
+
+
+
+
+PCA Analysis 
+```{r}
+areaDroughtPCA=princomp(AreaDroughtClean,cor=T)
+
+
+print(summary(areaDroughtPCA,loading=T),cut=0.4)
+
+
+```
+
+
+
+```{r}
+AreaDroughtScore=areaDroughtPCA$scores[,1:3]
+#round(AreaDroughtScore,2)
+
+round(cor(AreaDroughtScore),2)
+
+
+
+
+```
+
+
+
+
+
+Cluster Analysis
+```{r}
+
+AreaDroughtNew=AreaDrought
+
+AreaDroughtScale=scale(AreaDroughtNew)
+AreaDroughtDist=dist(AreaDroughtScale)
+
+AreaDroughtHClust=hclust(AreaDroughtDist,method='single')
+plot(AreaDroughtHClust,main="Single Linkage of Area Drought")
+
+plot(rev(AreaDroughtHClust$height),xlim = c(0,100))
+
+
+
+```
+
+```{r}
+ct=cutree(AreaDroughtHClust,k=3)
+table(ct)
+
+```
+```{r}
+
+plot(AreaDroughtNew,col=ct,main="Colored based on Single Linkage")
+
+```
+
+
+
+
+
+
+
+Average Hclust
+```{r}
+AreaDroughtHClust=hclust(AreaDroughtDist,method='average')
+plot(AreaDroughtHClust,main="Average Linkage of Area Drought")
+
+plot(rev(AreaDroughtHClust$height),xlim = c(0,100))
+
+
+```
+```{r}
+ct=cutree(AreaDroughtHClust,k=3)
+table(ct)
+
+
+
+```
+```{r}
+plot(AreaDroughtNew,col=ct,main="Colored based on Average Linkage")
+
+
+
+```
+
+
+```{r}
+
+AreaDroughtHClust=hclust(AreaDroughtDist,method='complete')
+plot(AreaDroughtHClust,main="Complete Linkage of Area Drought")
+
+plot(rev(AreaDroughtHClust$height),xlim = c(0,100))
+
+
+
+
+
+
+```
+```{r}
+
+ct=cutree(AreaDroughtHClust,k=3)
+table(ct)
+
+
+
+```
+```{r}
+plot(AreaDroughtNew[,c(1,5)],col=ct,main="Colored based on Complete Linkage")
+
+
+```
+K-means
+```{r}
+#Scree plot thingy for k-means
+plot.wgss = function(mydata, maxc = nrow(mydata) - 1) {
+ 
+wgss = numeric(maxc)
+ 
+for (i in 1:maxc) {
+ 
+km = kmeans(mydata, centers = i, nstart = 10)
+ 
+wgss[i] = km$tot.withinss
+ 
+}
+ 
+plot(1:maxc, wgss, type = "b", xlab = "Number of Clusters", ylab =
+"Within groups sum of squares",
+ 
+main = "Scree Plot")
+}
+
+
+
+```
+
+```{r}
+plot.wgss(AreaDroughtScale,maxc=30)
+
+
+
+```
+
+
+
+```{r}
+
+
+AreaDroughtKMean=kmeans(AreaDroughtScale,centers=3,nstart=10)
+table(AreaDroughtKMean$cluster)
+
+
+
+```
+
+```{r}
+plot(AreaDroughtNew,col=AreaDroughtKMean$cluster,main="Colored based on Kmeans")
+
+
+
+```
+Column Means for Each Cluster
+```{r}
+
+clusterMeans=AreaDroughtKMean$centers
+rownames(clusterMeans)=c("Clust1","Clust2","Clust3")
+library(knitr)
+
+kable(clusterMeans,caption="Column Means for Each Cluster")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+#model based clustering
+```{r}
+library(mclust)
+
+mc=Mclust(AreaDroughtScale)
+table(mc$classification)
+
+
+#plot(mc, what="BIC")
+
+```
+```{r}
+
+plot(mc, what="BIC")
+
+```
+```{r}
+plot(mc,what="classification",c(1,2))
+
+
+```
+```{r}
+plot(mc,what="uncertainty",c(1,2))
+
+```
+
+Exploratory Factory Analysis
+```{r}
+
+
+
+AreaDroughtFactorAnalysis=factanal(AreaDroughtScale, factors=3)
+
+AreaDroughtFactorAnalysis
+
+print(AreaDroughtFactorAnalysis$loadings,cut=.4)
+
+
+f.loading=AreaDroughtFactorAnalysis$loadings[,1:2]
+
+corHat=f.loading%*%t(f.loading)+diag(AreaDroughtFactorAnalysis$uniquenesses)
+corr=cor(AreaDroughtScale)
+
+
+print('This is the Root mean Square Error')
+rmse=sqrt(mean((corHat-corr)^2))
+rmse
+```
+
+  
+Confirmatory Factor Analysis
+```{r}
+
+library(sem)
+
+modelCFA=specifyModel(text="
+                            Drought->PAD1,lambda1,NA
+                            Drought->PPD1,lambda2,NA
+                            Inflation->AGSBillions,lambda3,NA
+                            Inflation->YIR,lambda4,NA
+                            Food_Supply->FCET,lambda5,NA
+                            Food_Supply->PPIF,lambda6,NA
+                            
+                            Drought<->Inflation,rho,NA
+                            Inflation<->Food_Supply,rho2,NA
+                            Food_Supply<->Drought,rho3,NA
+                            
+                            
+                            PAD1<->PAD1,theta1,NA
+                            FCET<->FCET,theta2,NA
+                            AGSBillions<->AGSBillions,theta3,NA
+                            YIR<->YIR,theta4,NA
+                            PPIF<->PPIF,theta5,NA
+                            PPD1<->PPD1,theta6,NA
+                            Drought<->Drought,NA,1
+                            Inflation<->Inflation,NA,1
+                            Food_Supply<->Food_Supply,NA,1")
+
+
+covthing=cov(AreaDrought)
+covthing
+ability_sem=sem(modelCFA,covthing,nrow(AreaDrought))
+summary(ability_sem)
+
+```
+
+
+
+
